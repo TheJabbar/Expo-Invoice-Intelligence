@@ -5,9 +5,7 @@ Using EasyOCR which doesn't require traditional model retraining - instead we us
 
 ## Files:
 
-- `train_model.py`: Python script for processing corrections and improving validation rules
-- `train.sh`: Shell script that orchestrates the improvement process
-- `safety.py`: Validation logic for corrections
+- `train_model.py`: Main training script that processes corrections and improves validation rules
 
 ## Improvement Process:
 
@@ -21,9 +19,6 @@ Using EasyOCR which doesn't require traditional model retraining - instead we us
 ```bash
 # Run the improvement process
 python ml/train_model.py
-
-# Or use the shell script
-bash ml/train.sh
 ```
 
 The process automatically finds the most recent weekly directory with training data and uses it to improve processing accuracy.

@@ -4,6 +4,9 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
+# Import from the SQLite database module for invoices
+from api.core.predictions_db import save_invoice
+
 # Directory to store correction data
 CORRECTIONS_DIR = Path(os.getenv("CORRECTIONS_DIR", "/app/corrections"))
 CORRECTIONS_DIR.mkdir(parents=True, exist_ok=True)
@@ -36,7 +39,7 @@ def save_prediction(
     raw_ocr: str,
     original_file_path: str = None
 ) -> str:
-    """Save prediction to local file storage"""
+    """Save prediction to local JSON file storage"""
     predictions = _load_data(PREDICTIONS_FILE)
 
     prediction_id = str(uuid.uuid4())
@@ -62,34 +65,10 @@ def save_correction(
     corrected_fields: dict,
     user_id: str
 ) -> str:
-    """Save correction to local file storage"""
-    corrections = _load_data(CORRECTIONS_FILE)
-    predictions = _load_data(PREDICTIONS_FILE)
-
-    # Find the original prediction record
-    original_prediction = None
-    for pred in predictions:
-        if pred["id"] == prediction_id:
-            original_prediction = pred
-            break
-
-    if not original_prediction:
-        raise ValueError(f"Original prediction with ID {prediction_id} not found")
-
-    correction_id = str(uuid.uuid4())
-
-    # Create correction record in the expected format
-    correction_record = {
-        "id": correction_id,
-        "invoice_id": original_prediction["invoice_id"],
-        "ocr_text": original_prediction["raw_ocr"],
-        "predicted_fields": original_prediction["predicted_fields"],
-        "corrected_fields": corrected_fields,
-        "model_version": original_prediction["model_version"],
-        "timestamp": datetime.now().isoformat()
-    }
-
-    corrections.append(correction_record)
-    _save_data(CORRECTIONS_FILE, corrections)
-
-    return correction_id
+    """Save correction to SQLite database"""
+    from api.core.predictions_db import save_correction as save_correction_to_db
+    return save_correction_to_db(
+        prediction_id=prediction_id,
+        corrected_fields=corrected_fields,
+        user_id=user_id
+    )

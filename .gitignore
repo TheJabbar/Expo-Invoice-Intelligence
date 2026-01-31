@@ -116,5 +116,17 @@ uv.lock
 
 # Test cache
 .pytest_cache/
-
 /sample_invoices/
+
+#EasyOCR Repo for retraining
+/easyocr_repo/
+
+#test scripts
+test_invoice_db.py
+test_model_version.py
+test_ocr_simple.py
+test_ocr.py
+test_retrain.py
+test_version_increment.py
+test_version_with_training.py
+trigger_retrain.py

@@ -1,0 +1,8 @@
+{
+  "train_data_dir": "ml\\training_data",
+  "output_model_dir": "./ml/retrained_models",
+  "epochs": 10,
+  "batch_size": 32,
+  "learning_rate": 0.001,
+  "validation_split": 0.2
+}

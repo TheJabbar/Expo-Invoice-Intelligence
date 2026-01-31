@@ -1,0 +1,45 @@
+{
+  "current_version": "v1.7-EasyOCR",
+  "version_history": [
+    {
+      "version": "v1.0-EasyOCR",
+      "timestamp": "initial",
+      "description": "Initial EasyOCR model version"
+    },
+    {
+      "version": "v1.1-EasyOCR",
+      "timestamp": "2026-01-31T18:24:53.461051",
+      "description": "Real retraining triggered"
+    },
+    {
+      "version": "v1.2-EasyOCR",
+      "timestamp": "2026-01-31T18:36:41.246429",
+      "description": "EasyOCR model retrained with 14 samples from 31012026_31012026"
+    },
+    {
+      "version": "v1.3-EasyOCR",
+      "timestamp": "2026-01-31T18:43:11.186468",
+      "description": "EasyOCR model retrained with 14 samples from 31012026_31012026"
+    },
+    {
+      "version": "v1.4-EasyOCR",
+      "timestamp": "2026-01-31T18:56:29.122170",
+      "description": "EasyOCR model retrained with 14 samples from 31012026_31012026"
+    },
+    {
+      "version": "v1.5-EasyOCR",
+      "timestamp": "2026-01-31T19:00:51.017669",
+      "description": "EasyOCR model retrained with 14 samples from 31012026_31012026"
+    },
+    {
+      "version": "v1.6-EasyOCR",
+      "timestamp": "2026-01-31T19:04:14.875210",
+      "description": "EasyOCR model retrained with 14 samples from 31012026_31012026"
+    },
+    {
+      "version": "v1.7-EasyOCR",
+      "timestamp": "2026-01-31T19:09:20.736161",
+      "description": "EasyOCR model retrained with 14 samples from 31012026_31012026"
+    }
+  ]
+}

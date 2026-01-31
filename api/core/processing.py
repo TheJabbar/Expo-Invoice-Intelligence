@@ -1,10 +1,12 @@
 from pathlib import Path
-import uuid
 import json
+import os
+import uuid
 from loguru import logger
 from api.services.ocr import InvoiceOCR
 from api.services.extractor import FieldExtractor
 from api.core.db import save_prediction, save_correction
+from api.core.predictions_db import save_invoice
 from api.services.rag.storage_service import store_corrected_prediction
 from api.utils.image_storage import save_corrected_image
 from api.utils.cropping.image_cropper import crop_corrected_regions
@@ -65,11 +67,19 @@ class InvoiceProcessor:
         field_confidences = extraction["field_confidences"]
         requires_review = any(conf < 0.75 for conf in field_confidences.values())
 
+        # Get current model version
+        try:
+            from api.utils.model_version_manager import get_current_model_version
+            current_model_version = get_current_model_version()
+        except ImportError:
+            # Fallback to default version if version manager is not available
+            current_model_version = "v1.0-EasyOCR"
+
         # Save prediction to DB
         logger.info(f"Saving prediction for invoice: {invoice_id}")
         prediction_id = save_prediction(
             invoice_id=invoice_id,
-            model_version="v1.0-ppocrv4",
+            model_version=current_model_version,
             predicted_fields=extraction["fields"],
             confidence=extraction["confidence"],
             field_confidences=extraction["field_confidences"],
@@ -93,12 +103,34 @@ class InvoiceProcessor:
             "debit_account": fields.get("debit_account"),
             "credit_account": fields.get("credit_account") or "Accounts Payable",
             "confidence": round(extraction["confidence"], 2),
-            "model_version": "v1.0-ppocr",
+            "model_version": current_model_version,
             "field_confidences": {k: round(v, 2) for k, v in field_confidences.items()}
         }
         logger.debug(f"Response for invoice {invoice_id}: {response}")
 
-        # No longer storing passed predictions in SQLite - only corrections are stored in JSON
+        # Save to invoices database if confidence is above threshold
+        overall_confidence = extraction["confidence"]
+        confidence_threshold = float(os.getenv("CONFIDENCE_THRESHOLD", "0.75"))
+
+        if overall_confidence >= confidence_threshold:
+            logger.info(f"Invoice {invoice_id} meets confidence threshold ({overall_confidence:.2f} >= {confidence_threshold}), saving to invoices database")
+            try:
+                from api.core.predictions_db import save_invoice
+                save_invoice(
+                    invoice_id=invoice_id,
+                    vendor=fields.get("vendor", ""),
+                    invoice_no=fields.get("invoice_no", ""),
+                    invoice_date=fields.get("invoice_date", ""),
+                    tax=float(fields.get("tax", 0)) if fields.get("tax") else 0.0,
+                    total=float(fields.get("total", 0)) if fields.get("total") else 0.0,
+                    debit_account=fields.get("debit_account", ""),
+                    credit_account=fields.get("credit_account", "Accounts Payable")
+                )
+                logger.info(f"Invoice {invoice_id} saved to invoices database")
+            except Exception as e:
+                logger.error(f"Error saving invoice to database: {e}")
+        else:
+            logger.info(f"Invoice {invoice_id} does not meet confidence threshold ({overall_confidence:.2f} < {confidence_threshold}), not saving to invoices database")
 
         # Auto-posting safety check
         if auto_post and not requires_review:
@@ -162,6 +194,9 @@ class InvoiceProcessor:
             # Get the original file path from the prediction record
             original_file_path = prediction_record.get("original_file_path")
             if original_file_path:
+                # Ensure the file path is a proper string
+                original_file_path = str(original_file_path)
+
                 # Load the OCR result from the prediction record
                 ocr_result = json.loads(prediction_record.get("raw_ocr", "{}"))
 
@@ -183,8 +218,12 @@ class InvoiceProcessor:
                 if os.path.exists(original_file_path):
                     os.remove(original_file_path)
                     logger.debug(f"Cleaned up temporary file: {original_file_path}")
+            else:
+                logger.warning(f"No original file path found for prediction {prediction_id}, skipping cropping")
         except Exception as e:
             logger.error(f"Error cropping corrected regions: {e}")
+            import traceback
+            traceback.print_exc()
 
         # Save corrected image if provided
         try:

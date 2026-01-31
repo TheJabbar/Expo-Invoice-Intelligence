@@ -1,0 +1,14 @@
+INV-d97753c3_vendor_0.png	XYZ Enterprises Pvt Ltd
+INV-d97753c3_invoice_no_0.png	INV-334
+INV-d97753c3_invoice_no_1.png	INV-334
+INV-d97753c3_invoice_date_0.png	2027-02-28
+INV-d97753c3_tax_0.png	178.0
+INV-d97753c3_total_0.png	1958.0
+INV-d97753c3_total_1.png	1958.0
+INV-ee2903bc_vendor_0.png	ABC Traders Pvt Ltd
+INV-ee2903bc_invoice_no_0.png	INV-223
+INV-ee2903bc_invoice_date_0.png	2026-01-12
+INV-ee2903bc_tax_0.png	141.0
+INV-ee2903bc_tax_1.png	141.0
+INV-ee2903bc_total_0.png	2491.0
+INV-ee2903bc_total_1.png	2491.0

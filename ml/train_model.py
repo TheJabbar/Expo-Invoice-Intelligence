@@ -9,6 +9,19 @@ from pathlib import Path
 from loguru import logger
 import pandas as pd
 from datetime import datetime
+import sys
+import os
+# Add the project root to the path to import modules
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Go up two levels to project root
+sys.path.insert(0, project_root)
+
+try:
+    from api.utils.model_version_manager import increment_model_version
+except ImportError:
+    # If import fails, define a dummy function for testing
+    def increment_model_version(description=""):
+        print(f"Model version increment called with: {description}")
+        return "v1.0-EasyOCR"
 
 
 def get_config(config_path):
@@ -17,32 +30,34 @@ def get_config(config_path):
     """
     with open(config_path, 'r', encoding="utf8") as stream:
         opt = yaml.safe_load(stream)
-
+    
     # Process character set from training data if needed
     if opt.get('lang_char') == 'None':
         characters = ''
-        train_data_dir = opt.get('train_data', os.getenv("TRAIN_DATA_DIR", "/app/ml/train"))
-
+        train_data_dir = opt.get('train_data', os.getenv("TRAIN_DATA_DIR", "./ml"))
+        
         # Find weekly directories with labels.csv
         ml_dir = Path(train_data_dir)
+        if not ml_dir.exists():
+            ml_dir = Path("./ml")  # Fallback to relative path
         weekly_dirs = [d for d in ml_dir.iterdir() if d.is_dir() and '_' in d.name and len(d.name) == 17]  # Format: DDMMYYYY_DDMMYYYY
-
+        
         if weekly_dirs:
             # Use the most recent weekly directory
             latest_weekly_dir = max(weekly_dirs, key=lambda x: x.name)
             csv_path = latest_weekly_dir / 'labels.csv'
-
+            
             if csv_path.exists():
                 # Read CSV with the expected format
                 df = pd.read_csv(csv_path, usecols=['filename', 'words'], keep_default_na=False)
                 all_char = ''.join(df['words'].astype(str))
                 characters += ''.join(set(all_char))
-
+        
         characters = sorted(set(characters))
         opt['character'] = ''.join(characters)
     else:
         opt['character'] = opt.get('number', '') + opt.get('symbol', '') + opt.get('lang_char', '')
-
+    
     # Create experiment directory
     experiment_name = opt.get('experiment_name', 'invoice_ocr')
     os.makedirs(f'./saved_models/{experiment_name}', exist_ok=True)
@@ -51,16 +66,24 @@ def get_config(config_path):
 
 def train(opt, amp=False):
     """
-    Train the model using the configuration and training data
+    Run the real EasyOCR retraining process using the training data
     """
-    logger.info("Starting training process...")
-
     # Find the most recent weekly training directory
-    ml_dir = Path(opt.get('train_data', os.getenv("TRAIN_DATA_DIR", "/app/ml")))
+    ml_dir = Path(opt.get('train_data', os.getenv("TRAIN_DATA_DIR", "./ml")))
+    if not ml_dir.exists():
+        ml_dir = Path("./ml")  # Fallback to relative path
+
+    # Check both the main ml directory and the train subdirectory for weekly directories
     weekly_dirs = [d for d in ml_dir.iterdir() if d.is_dir() and '_' in d.name and len(d.name) == 17]  # Format: DDMMYYYY_DDMMYYYY
 
+    # If no directories found in main ml directory, check the train subdirectory
     if not weekly_dirs:
-        logger.warning("No weekly training directories found")
+        train_subdir = ml_dir / "train"
+        if train_subdir.exists():
+            weekly_dirs = [d for d in train_subdir.iterdir() if d.is_dir() and '_' in d.name and len(d.name) == 17]
+
+    if not weekly_dirs:
+        print("Skipping retraining: no weekly training directories found")
         return False
 
     # Use the most recent weekly directory
@@ -68,82 +91,60 @@ def train(opt, amp=False):
     labels_csv_path = latest_weekly_dir / "labels.csv"
 
     if not labels_csv_path.exists():
-        logger.warning(f"No labels.csv file found in {latest_weekly_dir}")
-        # Check for legacy train.txt and convert if needed
+        print(f"No labels.csv file in {latest_weekly_dir}, checking for legacy train.txt")
         train_txt_path = latest_weekly_dir / "train.txt"
-        if train_txt_path.exists():
-            logger.info(f"Found legacy train.txt, converting to labels.csv format")
+
+        if not train_txt_path.exists():
+            print(f"Skipping retraining: no labels.csv or train.txt file in {latest_weekly_dir}")
+            return False
+        else:
+            # Convert legacy train.txt to labels.csv format
+            print(f"Converting legacy train.txt to labels.csv format...")
+            from api.utils.cropping.image_cropper import convert_train_txt_to_csv
             convert_train_txt_to_csv(train_txt_path, latest_weekly_dir)
             labels_csv_path = latest_weekly_dir / "labels.csv"
-        else:
-            logger.error(f"No training data found in {latest_weekly_dir}")
-            return False
 
     try:
         # Read the training data
         df = pd.read_csv(labels_csv_path, usecols=['filename', 'words'], keep_default_na=False)
-        logger.info(f"Loaded {len(df)} training samples from {labels_csv_path}")
+        sample_count = len(df)
 
-        # Process the training data
-        total_samples = len(df)
-        logger.info(f"Processing {total_samples} samples")
+        print(f"Found {sample_count} training samples in {labels_csv_path}")
 
-        # Example: Update validation rules based on the training data
-        for idx, row in df.iterrows():
-            filename = row['filename']
-            words = row['words']
+        if sample_count < 5:  # Minimum samples needed
+            print(f"Skipping retraining: only {sample_count} samples in {latest_weekly_dir}")
+            return False
 
-            # In a real implementation, this would update model weights or rules
-            # For now, we just log the progress
-            if idx % 100 == 0:
-                logger.info(f"Processed {idx}/{total_samples} samples")
+        print(f"Starting EasyOCR retraining with {sample_count} samples from {latest_weekly_dir.name}")
 
-        # Simulate model saving
-        experiment_name = opt.get('experiment_name', 'invoice_ocr')
-        model_path = f"./saved_models/{experiment_name}/final.pth"
-        logger.info(f"Simulated model saved to {model_path}")
+        # Actually run the retraining process
+        from ml.retrain_easyocr import run_easyocr_retraining, prepare_training_data
 
-        logger.info("Training completed successfully")
+        # Prepare the training data in EasyOCR format using the found directory
+        train_data_dir = prepare_training_data(latest_weekly_dir)
+        if not train_data_dir:
+            print("Failed to prepare training data")
+            return False
+
+        # Run the actual retraining
+        success = run_easyocr_retraining(train_data_dir)
+        if not success:
+            print("EasyOCR retraining failed")
+            return False
+
+        print(f"EasyOCR retraining completed with {sample_count} samples from {latest_weekly_dir.name}")
+
+        # Increment model version after successful retraining
+        new_version = increment_model_version(f"EasyOCR model retrained with {sample_count} samples from {latest_weekly_dir.name}")
+        print(f"  Model version updated to: {new_version}")
+
         return True
 
     except Exception as e:
-        logger.error(f"Error during training: {e}")
+        print(f"Error during retraining: {e}")
+        import traceback
+        traceback.print_exc()
         return False
-
-
-def convert_train_txt_to_csv(train_txt_path, weekly_dir):
-    """
-    Convert legacy train.txt format to new labels.csv format
-    """
-    logger.info(f"Converting {train_txt_path} to labels.csv format")
-
-    try:
-        rows = []
-        with open(train_txt_path, 'r', encoding='utf-8') as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    # train.txt format: "image_path corrected_text"
-                    parts = line.split(' ', 1)  # Split only on first space
-                    if len(parts) == 2:
-                        image_path = parts[0]
-                        corrected_text = parts[1]
-
-                        # Extract filename from path
-                        filename = Path(image_path).name
-                        rows.append({'filename': filename, 'words': corrected_text})
-
-        # Write to labels.csv
-        labels_csv = weekly_dir / "labels.csv"
-        if rows:
-            df = pd.DataFrame(rows)
-            df.to_csv(labels_csv, index=False)
-            logger.info(f"Converted {len(rows)} entries to {labels_csv}")
-        else:
-            logger.warning("No valid entries found in train.txt for conversion")
-
-    except Exception as e:
-        logger.error(f"Error converting train.txt to CSV: {e}")
 
 
 def run_training():
@@ -151,18 +152,33 @@ def run_training():
     Main training function that follows the example structure
     """
     logger.info("Processing corrected data to improve invoice processing accuracy")
-
-    # Load configuration
+    
+    # Create a basic config file if it doesn't exist
     config_path = "config_files/invoice_config.yaml"
+    os.makedirs("config_files", exist_ok=True)
+    
     if not os.path.exists(config_path):
-        logger.error(f"Configuration file {config_path} not found")
-        return False
-
+        # Create a default configuration
+        default_config = {
+            'experiment_name': 'invoice_ocr_easyocr',
+            'train_data': os.getenv("TRAIN_DATA_DIR", "./ml"),
+            'batch_size': 32,
+            'num_iter': 1000,
+            'lr': 0.001,
+            'lang_char': 'None',  # Will be computed from data
+            'number': '0123456789',
+            'symbol': '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~ '
+        }
+        
+        with open(config_path, 'w', encoding='utf-8') as f:
+            yaml.dump(default_config, f)
+    
+    # Load configuration
     opt = get_config(config_path)
-
+    
     # Run training
     success = train(opt, amp=False)
-
+    
     return success
 
 
