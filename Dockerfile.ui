@@ -1,0 +1,12 @@
+FROM python:3.11-slim
+
+# Install gradio and requests
+RUN pip install --no-cache-dir gradio requests
+
+# Copy UI code
+WORKDIR /app
+COPY ui/ /app/ui/
+
+EXPOSE 7860
+
+CMD ["python", "ui/app.py"]

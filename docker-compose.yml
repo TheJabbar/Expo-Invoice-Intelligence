@@ -1,0 +1,54 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./api:/app/api
+      - ./ml:/app/ml
+      - ./corrections:/app/corrections
+    env_file:
+      - .env
+    environment:
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      CORRECTIONS_DIR: /app/corrections
+      TRAIN_DATA_DIR: /app/ml/train
+      MODEL_DIR: /app/ml/model
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    command: ["uvicorn", "api.core.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./ui:/app/ui
+    environment:
+      API_BASE_URL: http://api:8000
+    restart: unless-stopped
+    command: ["gradio", "ui/app.py"]
+
+volumes:
+  postgres_data:
+  minio_data:
+  qdrant_storage:
+  corrections_data:

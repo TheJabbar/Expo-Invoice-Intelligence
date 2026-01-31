@@ -1,0 +1,49 @@
+# Single stage Dockerfile
+FROM python:3.11-slim
+
+# Install system dependencies for EasyOCR + PDF handling
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
+    libgfortran5 \
+    libglx0 \
+    libgl1 \
+    libopengl0 \
+    libglib2.0-dev \
+    libjpeg-dev \
+    libpng-dev \
+    libtiff5-dev \
+    poppler-utils \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install UV
+RUN pip install --no-cache-dir uv==0.2.0
+
+# Copy project configuration and lock file
+WORKDIR /app
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies into isolated environment
+RUN uv pip install --system --no-cache-dir --compile-bytecode -e .
+
+# Copy application code
+COPY . .
+
+# Create non-root user first
+RUN useradd -m -u 1000 appuser && chown -R appuser /app
+
+# Create corrections directory
+RUN mkdir -p /app/corrections && chown -R appuser /app/corrections
+
+USER appuser
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8000/health || exit 1
+
+CMD ["uvicorn", "api.core.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

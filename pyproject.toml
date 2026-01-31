@@ -1,0 +1,52 @@
+[project]
+name = "invoice-intelligence-exponential-ai"
+version = "1.0.0"
+description = "Human-in-the-loop OCR system for invoice processing"
+requires-python = ">=3.10,<3.12"
+dependencies = [
+    "fastapi[standard]>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "easyocr>=1.7.0",
+    "opencv-python-headless>=4.9.0",
+    "pdf2image>=1.16.0",
+    "gradio>=4.24.0",
+    "mlflow>=2.11.0",
+    "pandas>=2.2.0",
+    "apache-airflow>=2.8.1",
+    "pytest>=8.0.0",
+    "python-multipart>=0.0.7",
+    "loguru>=0.7.0",
+    "groq>=0.9.0",
+    "pydantic>=1.10.0",
+    "qdrant-client>=1.6.0",
+    "sentence-transformers>=2.6.0",
+    "wget>=3.2",
+    "schedule>=1.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.3.0",
+    "black>=24.0.0",
+    "pytest-cov>=4.1.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.3.0",
+    "black>=24.0.0",
+    "pytest-cov>=4.1.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = [
+    "--strict-markers",
+    "--tb=short",
+    "-v"
+]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
