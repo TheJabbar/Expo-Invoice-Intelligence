@@ -72,11 +72,6 @@ graph TD
     DD[JSON Files] -.->|Store Corrections| O
 ```
 
-## Videos and Snapshots
-
-![Invoice Intelligence Flow](invoice_intelligence_flow.png)
-
-[Demo Video](https://youtu.be/N8xE1SQUVRk)
 
 ## Tech Stack
 
