@@ -24,8 +24,8 @@ Production-ready invoice extraction system with human-in-the-loop learning that 
 ### Learning Loop Pipeline
 - **Correction Collection**: User feedback and corrections for all fields including debit/credit accounts
 - **Vector DB Storage**: Corrections stored in Qdrant vector database with OCR text context for RAG
-- **Correction Retrieval**: Similar past corrections retrieved during processing for improved accuracy
-- **Training Data Generation**: Cropped image regions from corrections for model retraining
+- **Correction Retrieval**: Similar past corrections of credit and debit accounts retrieved during processing for improved accuracy
+- **Training Data Generation**: Cropped image regions from corrections for OCR text recognition model retraining
 - **Model Retraining**: EasyOCR fine-tuning with corrected data and improved field extraction rules
 - **Model Versioning**: Automatic version incrementing after each retraining cycle
 - **Continuous Improvement**: Weekly retraining cycles with accumulated corrections
@@ -84,7 +84,7 @@ graph TD
 | Database | SQLite | Built-in |
 | ML Pipeline | Custom Training Pipeline | Built-in |
 | Vector DB | Qdrant | 1.6+ |
-| LLM Integration | Groq | Latest |
+| LLM Integration | Groq (MoonshotAI/Kimi-K2-Instruct)| Latest |
 | Document Processing | pdf2image | 1.16+ |
 | Image Processing | OpenCV | 4.9+ |
 | Testing | pytest | 8.0+ |
@@ -221,3 +221,36 @@ invoice-intelligence/
 - Secure service communications with TLS
 - Fine-tune confidence thresholds based on business requirements
 - Monitor model version increments to track improvement
+
+## Future Enhancements (To-Do List)
+
+### Model & Training Improvements
+1. **Model Validation Framework**: Validate and test real OCR text recognition model retraining pipeline with automated model rejection framework when accuracy deteriorates
+2. **Retraining Scheduler**: Test and optimize the retraining scheduler feature with configurable intervals
+3. **LLM Fine-tuning**: Implement LLM fine-tuning capabilities with vector database purging for debit/credit account corrections triggered by data threshold rather than fixed schedule
+4. **MLFlow Integration**: Integrate MLFlow for enhanced experiment tracking, model versioning, and retraining pipeline monitoring
+5. **Model Performance Monitoring**: Implement continuous model performance monitoring with automated alerts for degradation
+
+### Testing & Quality Assurance
+6. **Comprehensive Testing**: Develop unit tests, integration tests, and load tests for production deployment validation
+7. **Performance Benchmarking**: Establish performance benchmarks and regression testing for OCR accuracy and processing speed
+
+### Infrastructure & Deployment
+8. **Docker Optimization**: Optimize Dockerfiles for smaller images, multi-stage builds, and reduced attack surface
+9. **CI/CD Pipeline**: Implement comprehensive CI/CD pipeline with automated testing, security scanning, and deployment workflows
+10. **Container Orchestration**: Explore Kubernetes deployment for improved scalability and resilience
+
+### System Reliability & Observability
+11. **Monitoring & Alerting**: Implement comprehensive monitoring (Prometheus/Grafana) and alerting for system health, performance, and errors
+12. **Logging Enhancement**: Improve structured logging for debugging and audit trails
+13. **Backup & Recovery**: Implement automated backup and disaster recovery procedures
+
+### User Interface & Experience
+14. **UI Enhancement**: Redesign and improve the user interface with better UX/UI design, responsive layouts, and enhanced user experience for invoice review and correction workflow
+
+### Feature Enhancements
+15. **Advanced Confidence Scoring**: Enhance confidence scoring algorithm with ensemble methods and uncertainty quantification
+16. **Multi-format Support**: Expand support for additional document formats and languages
+17. **Batch Processing**: Implement batch processing capabilities for high-volume invoice ingestion
+18. **API Rate Limiting**: Add rate limiting and request throttling for API endpoints
+19. **Security Hardening**: Implement authentication, authorization, and input validation for enhanced security
