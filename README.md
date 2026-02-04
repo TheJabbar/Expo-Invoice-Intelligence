@@ -42,7 +42,7 @@ graph TD
     C --> D[EasyOCR Text Recognition]
     D --> E[Field Extraction]
     E --> F[LLM-Based Confidence Calculation]
-    F --> G{Confidence ≥ 0.75?}
+    F --> G{All Fields ≥ 0.75?}
 
     G -->|Yes| H[Auto-Approve & Post to Accounting]
     G -->|No| I[Send to UI for Manual Correction]
