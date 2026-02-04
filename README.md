@@ -41,7 +41,7 @@ graph TD
     B --> C[Image Preprocessing]
     C --> D[EasyOCR Text Recognition]
     D --> E[Field Extraction]
-    E --> F[Confidence Calculation]
+    E --> F[LLM-Based Confidence Calculation]
     F --> G{Confidence ≥ 0.75?}
 
     G -->|Yes| H[Auto-Approve & Post to Accounting]
