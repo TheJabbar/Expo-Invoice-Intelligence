@@ -7,9 +7,9 @@ Production-ready invoice extraction system with human-in-the-loop learning that 
 ### Core Services
 - **API Service**: FastAPI backend handling invoice uploads and processing
 - **UI Service**: Gradio interface for manual corrections and feedback
-- **OCR Engine**: EasyOCR for text recognition (replacing PP-OCRv4)
+- **OCR Engine**: EasyOCR for text recognition
 - **Field Extractor**: Rule-based and LLM-powered field extraction
-- **Confidence Calculator**: Multi-factor confidence scoring system
+- **LLM Confidence Engine**: LLM-based confidence scoring for extracted fields
 - **Database**: SQLite for invoice storage, JSON files for predictions and corrections
 - **Model Version Manager**: Tracks model versions and improvements
 
@@ -17,8 +17,8 @@ Production-ready invoice extraction system with human-in-the-loop learning that 
 - **Image Preprocessing**: PDF to image conversion, noise reduction
 - **Text Recognition**: OCR with EasyOCR engine
 - **Field Extraction**: Regex patterns and LLM-based extraction
-- **Confidence Scoring**: Multi-factor confidence calculation
-- **Confidence Gating**: Threshold-based automation decision
+- **Confidence Scoring**: LLM-based confidence calculation
+- **Confidence Gating**: Threshold-based automation decision (any field with <0.75 confidence triggers human review)
 - **Accounting Integration**: Journal entry creation and posting
 
 ### Learning Loop Pipeline
@@ -128,22 +128,12 @@ docker-compose ps
 ## Usage
 
 1. Upload an invoice (PDF/JPG/PNG) to the API endpoint
-2. The system will automatically extract fields using OCR
-3. If confidence is below 0.75, manual corrections are required via UI
+2. The system will automatically extract fields using OCR and LLM
+3. If any field has confidence below 0.75, manual corrections are required via UI
 4. Submit corrections to improve the model
 5. Validated corrections will be used for weekly retraining
 6. Model version automatically increments after each retraining cycle
 
-## Confidence Scoring System
-
-The system uses a multi-factor confidence calculation:
-
-1. **OCR Confidence**: Average confidence of OCR words matching the field
-2. **Pattern Strength**: Confidence based on regex pattern matching
-3. **Completeness**: Confidence based on field completeness and format
-4. **Cross-Validation**: Consistency checks between related fields
-
-Each field receives a confidence score, and an overall confidence is calculated using weighted average based on field importance.
 
 ## Data Flow
 
@@ -161,7 +151,7 @@ Each field receives a confidence score, and an overall confidence is calculated 
 ## Safety Measures
 
 - **Format Validation**: Basic format checks on extracted values
-- **Confidence Threshold**: Configurable threshold for automation (default 0.75)
+- **Confidence Threshold**: Configurable threshold for automation (default 0.75); any field below this triggers human review
 - **Correction Validation**: Validation of user corrections before training inclusion
 - **Model Versioning**: Automatic version tracking with EasyOCR branding
 
@@ -191,7 +181,7 @@ invoice-intelligence/
 │   ├── services/
 │   │   ├── ocr.py               # OCR engine wrapper
 │   │   ├── extractor.py         # Field extraction service
-│   │   └── confidence.py        # Confidence calculation
+│   │   └── llm_ocr_postprocessor.py  # LLM-based field extraction and confidence calculation
 │   └── utils/
 │       ├── model_version_manager.py # Model version management
 │       └── cropping/            # Image cropping utilities
@@ -249,7 +239,7 @@ invoice-intelligence/
 14. **UI Enhancement**: Redesign and improve the user interface with better UX/UI design, responsive layouts, and enhanced user experience for invoice review and correction workflow
 
 ### Feature Enhancements
-15. **Advanced Confidence Scoring**: Enhance confidence scoring algorithm with ensemble methods and uncertainty quantification
+15. **Enhanced LLM Confidence Scoring**: Improve LLM-based confidence scoring with better uncertainty quantification and reliability metrics
 16. **Multi-format Support**: Expand support for additional document formats and languages
 17. **Batch Processing**: Implement batch processing capabilities for high-volume invoice ingestion
 18. **API Rate Limiting**: Add rate limiting and request throttling for API endpoints

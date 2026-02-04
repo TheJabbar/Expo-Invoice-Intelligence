@@ -1,7 +1,6 @@
 import re
 from datetime import datetime
 from loguru import logger
-from api.services.confidence import ConfidenceCalculator
 from api.services.llm_ocr_postprocessor import LLMOCRPostProcessor
 
 class FieldExtractor:
@@ -29,7 +28,6 @@ class FieldExtractor:
     }
 
     def __init__(self):
-        self.conf_calc = ConfidenceCalculator()
         self.llm_processor = LLMOCRPostProcessor()
 
     def extract(self, ocr_result: dict) -> dict:
@@ -60,41 +58,19 @@ class FieldExtractor:
                     if field_name in field_llm_confidences:
                         confidences[field_name] = field_llm_confidences[field_name]
                     else:
-                        # Fallback to OCR-based confidence calculation if LLM didn't provide confidence
-                        llm_value = llm_extracted.get(field_name)
-                        if field_name in ["invoice_no", "invoice_date", "total", "tax"]:
-                            expected_format = self._get_expected_format(field_name)
-                            confidences[field_name] = self.conf_calc.calculate_field_confidence(
-                                ocr_words=words,
-                                field_text=str(llm_value) if llm_value else "",
-                                pattern_matched=True,  # Consider LLM extraction as pattern matched
-                                expected_format=expected_format
-                            )
-                        elif field_name == "vendor":
-                            # Calculate OCR confidence for the vendor text
-                            confidences[field_name] = self.conf_calc.calculate_field_confidence(
-                                ocr_words=words,
-                                field_text=str(llm_value) if llm_value else "",
-                                pattern_matched=True,
-                                expected_format=None
-                            )
-                        elif field_name in ["debit_account", "credit_account"]:
-                            confidences[field_name] = 0.8  # Account mapping is usually reliable
+                        # If LLM didn't provide confidence, assign a default confidence
+                        # Since the LLM extracted the field, we assume moderate confidence
+                        confidences[field_name] = 0.7  # Default confidence for LLM-extracted fields without specific confidence
                 else:
-                    # Fallback to regex-based confidence
+                    # For regex-extracted fields, assign a lower default confidence
+                    # since they weren't extracted by the LLM
                     if field_name in ["invoice_no", "invoice_date", "total", "tax"]:
-                        expected_format = self._get_expected_format(field_name)
-                        confidences[field_name] = self.conf_calc.calculate_field_confidence(
-                            ocr_words=words,
-                            field_text=str(fields[field_name]) if fields[field_name] else "",
-                            pattern_matched=True,
-                            expected_format=expected_format
-                        )
+                        confidences[field_name] = 0.6  # Lower confidence for regex-extracted fields
                     elif field_name == "vendor":
                         _, vendor_conf = self._extract_vendor(ocr_result)
                         confidences[field_name] = vendor_conf
                     elif field_name == "debit_account":
-                        confidences[field_name] = 0.8  # Account mapping is usually reliable
+                        confidences[field_name] = 0.6  # Lower confidence for regex-extracted account
                     elif field_name == "credit_account":
                         confidences[field_name] = 0.0  # Default to 0.0 if not provided by LLM
         except Exception as e:
@@ -141,13 +117,13 @@ class FieldExtractor:
                     # Use the minimum confidence among extracted fields as overall confidence
                     overall_conf = min(active_confidences.values())
                 else:
-                    # If no LLM confidences are available for extracted fields, use traditional calculation
-                    overall_conf = self.conf_calc.calculate_overall_confidence(confidences)
+                    # If no LLM confidences are available for extracted fields, use minimum of available confidences
+                    overall_conf = min(confidences.values()) if confidences else 0.0
             else:
-                overall_conf = self.conf_calc.calculate_overall_confidence(confidences)
+                overall_conf = min(confidences.values()) if confidences else 0.0
         else:
-            # Include credit_account in the traditional calculation
-            overall_conf = self.conf_calc.calculate_overall_confidence(confidences)
+            # Use minimum of available confidences when no LLM extraction happened
+            overall_conf = min(confidences.values()) if confidences else 0.0
 
         return {
             "fields": fields,
@@ -167,15 +143,10 @@ class FieldExtractor:
             value, pattern_matched = self._extract_with_patterns(text, words, patterns)
             fields[field] = value
 
-            # Calculate confidence for this field
+            # Assign confidence for this field - since this is a fallback method,
+            # we assign lower confidence values
             if value is not None:
-                expected_format = self._get_expected_format(field)
-                confidences[field] = self.conf_calc.calculate_field_confidence(
-                    ocr_words=words,
-                    field_text=str(value),
-                    pattern_matched=pattern_matched,
-                    expected_format=expected_format
-                )
+                confidences[field] = 0.5  # Lower confidence for regex-extracted fields in fallback
             else:
                 confidences[field] = 0.0
 

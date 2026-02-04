@@ -37,7 +37,7 @@ def run_retraining():
             return False
         
         # Get the base model path
-        model_path = model_dir / "PP-OCRv5_server_rec_pretrained.pdparams"
+        model_path = model_dir / "easyocr_model.pth"  # Using EasyOCR model
         if not model_path.exists():
             logger.error(f"Base model not found: {model_path}")
             return False
